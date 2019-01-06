@@ -1,1 +1,5 @@
-(could you |)remind me (in|on|at|) {{time}} (to|that|) {{reminder}}
+(in|on|at|) {{time}} ((can|would|could) you |) remind me (to|that|I|that I|that I should|that I will|that I must|that I have to) {{reminder}}
+(in|on|at|) {{time}} ((can|would|could) you |) make sure (that|I|that I|that I should|that I will|that I must|that I have to) {{reminder}}
+((can|would|could) you |) remind me (in|on|at|) {{time}} (to|that|I|that I|that I should|that I will|that I must|that I have to) {{reminder}}
+((can|would|could) you |) make sure (in|on|at|) {{time}} (that|I|that I|that I should|that I will|that I must|that I have to) {{reminder}}
+((can|would|could) you |) make sure (I|that I|that I should|that I will|that I must|that I have to) {{reminder}} (in|on|at|) {{time}} 

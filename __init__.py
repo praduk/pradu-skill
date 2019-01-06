@@ -3,6 +3,8 @@ from mycroft.skills.audioservice import AudioService
 from mycroft.util.parse import extract_datetime, extract_number, normalize
 import datetime
 import os
+import re
+import pickle
 
 class TodoItem:
     def __init__(self):
@@ -10,20 +12,28 @@ class TodoItem:
         self.desc = ""
 
 class Todo(list):
-    def parse(self):
-        fn = os.environ['HOME'] + '/today.txt'
+    def parse(self,fnstem):
+        fn = os.environ['HOME'] + '/planning/' + fnstem + '.txt'
         datetoday = datetime.datetime.today()
-        with open(fn,"r") as f:
-            data = f.read().splitlines()
-            for x in data:
-                if len(x)<1 or x[0]=='#' or x[0]=='\n':
-                    continue
-                i = TodoItem()
-                y = x.split(" ", 1)
-                time = int(y[0])
-                i.time = datetime.datetime(datetoday.year, datetoday.month, datetoday.day, time//100, time%100)
-                i.desc = y[1]
-                self.append(i)
+        try:
+            with open(fn,"r") as f:
+                data = f.read().splitlines()
+                for x in data:
+                    if len(x)<1 or x[0]=='#' or x[0]=='\n':
+                        continue
+                    i = TodoItem()
+                    y = x.split(" ", 1)
+                    time = int(y[0])
+                    i.time = datetime.datetime(datetoday.year, datetoday.month, datetoday.day, time//100, time%100)
+                    i.desc = y[1]
+                    self.append(i)
+        except:
+            pass
+
+
+def valid_time(input_string):
+    td = extract_datetime(input_string,datetime.datetime.now())
+    return td
 
 class Pradu(MycroftSkill):
     def __init__(self):
@@ -41,12 +51,33 @@ class Pradu(MycroftSkill):
     @intent_file_handler('remind.intent')
     def handle_reminder(self, msg=None):
         tnow = datetime.datetime.now().replace(hour=0,minute=0,second=0,microsecond=0)
-        tstring = normalize(msg.data['time'])
-        reminder = msg.data['reminder']
+        tstring = ""
+        if not ('time' in msg.data):
+            audio.wait_while_speaking()
+            tstring = self.get_response("When did you want to be reminded?",num_retries=3, validator=valid_time)
+            if not tstring:
+                audio.wait_while_speaking()
+                self.speak("Okay I'm giving up.")
+                return
+        else:
+            tstring = msg.data['time']
 
-        ret = extract_datetime(tstring,tnow)
+        reminder = ""
+        if not ('reminder' in msg.data):
+            audio.wait_while_speaking()
+            reminder = self.get_response("What did you want to be reminded of?",num_retries=3)
+            if not reminder:
+                audio.wait_while_speaking()
+                self.speak("Okay I'm giving up.")
+                return
+        else:
+            reminder = msg.data['reminder']
+        rep=[("yourself",["myself"]), ("you",["I", "me"]), ("your", ["my"])]
+        d={ k : "\\b(?:" + "|".join(v) + ")\\b" for k,v in rep}
+        for k,r in d.items(): reminder=re.sub(r,k,reminder)
+        ret = extract_datetime(tstring,datetime.datetime.now())
         if not ret:
-            self.speak("I couldn't understand when you needed to be reminded.")
+            self.speak("I couldn't understand when you needed to be reminded. Try again.")
             return
         t = ret[0]
 
@@ -54,6 +85,7 @@ class Pradu(MycroftSkill):
         td = t-tnow
         deltadays = td.days + (td.seconds + td.microseconds/1E6)/86400;
         if deltadays<0:
+            audio.wait_while_speaking()
             self.speak("I can't do that, the reminder is in the past.")
             return
 
@@ -64,6 +96,7 @@ class Pradu(MycroftSkill):
         else:
             timestring = "at " + util.format.nice_time(t,'en-us',use_24hour=True)
 
+        datestring = util.format.nice_date(t,lang='en-us',now=datetime.datetime.now())
         if deltadays<1:
             datestring = "today"
         elif deltadays<2:
@@ -72,36 +105,49 @@ class Pradu(MycroftSkill):
             datestring = "day after tomorrow"
         elif deltadays<=7:
             datestring = "on " + t.strftime("%A")
-        elif t.year != tnow.year:
-            datestring = "on " + t.strftime("%A, %B %d, %Y")
-        elif t.month != tnow.month:
-            datestring = "on " + t.strftime("%A, %B %d")
-        else :
-            datestring = "on " + t.strftime("%A the %d")
 
-        self.speak("The time string is " + tstring)
         audio.wait_while_speaking()
+        if self.ask_yesno("You would like to be reminded " + datestring + " " + timestring + " to " + reminder + ".  Is that correct?")!="yes":
+            self.speak("Okay. Please repeat your request if you would like a reminder.")
+            return
         self.speak("Okay. I will remind you " + datestring + " " + timestring + " to " + reminder + ".")
+        self.log.info("Adding reminder: [" + t.strftime("%A, %B %d, %Y,  %H:%M") + "]  " + reminder + ".")
 
         #self.speak_dialog('pradu')
         #self.speak(message.data['reminder'])
 
     def update(self):
         tnow = datetime.datetime.now()
-        if tnow.hour==5 and tnow.minute==54:
-            self.audio_service.play("/opt/mycroft/skills/pradu-skill/audio/Eminem_Lose_Yourself.mp3")
+        if tnow.hour==5 and tnow.minute==55:
+            self.log.info("Playing Wake-Up Song")
+        #    self.audio_service.play("/opt/mycroft/skills/pradu-skill/audio/Eminem_Lose_Yourself.mp3")
+            self.audio_service.play("/opt/mycroft/skills/pradu-skill/audio/JessGlynne_CleanBandit.mp3")
         if tnow.hour>=6 and ( tnow.hour<22 or (tnow.hour==22 and tnow.minute==0) ) and ( tnow.minute==0 or tnow.minute==15 or tnow.minute==30 or tnow.minute==45 ):
+            self.log.info("Notification of Current Time")
             audio.wait_while_speaking()
-            self.speak("It's " + util.format.nice_time(tnow) + ".",use_24hour=True)
+            self.speak("It's " + util.format.nice_time(tnow,use_24hour=True) + ".")
 
         todaysList = Todo()
-        todaysList.parse()
-        for task in todaysList:
-            if (tnow - datetime.timedelta(seconds=30)) <= task.time and task.time <= (tnow + datetime.timedelta(seconds=30)):
-                audio.wait_while_speaking()
-                p = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/notification.wav")
-                p.wait()
-                self.speak(task.desc)
+        todaysList.parse("everyday")
+        todaysList.parse(tnow.strftime("weekly/%A"))
+        todaysList.parse(tnow.strftime("date/%m%d"))
+
+        firstNotification = True
+        if len(todaysList) > 0:
+            audio.wait_while_speaking()
+            for task in todaysList:
+                if (tnow - datetime.timedelta(seconds=30)) <= task.time and task.time <= (tnow + datetime.timedelta(seconds=30)):
+                    if firstNotification:
+                        self.log.info("Playing Notifications")
+                        firstNotification = False
+                        p = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/notification.wav")
+                        p.wait()
+                    else:
+                        q = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/click.wav")
+                        q.wait()
+                    self.log.info("Saying :" + task.desc)
+                    self.speak(task.desc)
+                    audio.wait_while_speaking()
 
 def create_skill():
     return Pradu()
