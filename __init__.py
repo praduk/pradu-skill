@@ -1,10 +1,13 @@
 from mycroft import MycroftSkill, intent_file_handler, intent_handler, util, audio
 from mycroft.skills.audioservice import AudioService
 from mycroft.util.parse import extract_datetime, extract_number, normalize
+import time
 import datetime
 import os
 import re
 import pickle
+
+prefix = os.environ['HOME'] + '/planning/'
 
 class TodoItem:
     def __init__(self):
@@ -13,7 +16,7 @@ class TodoItem:
 
 class Todo(list):
     def parse(self,fnstem):
-        fn = os.environ['HOME'] + '/planning/' + fnstem + '.txt'
+        fn = prefix + fnstem + '.txt'
         datetoday = datetime.datetime.today()
         try:
             with open(fn,"r") as f:
@@ -35,6 +38,20 @@ def valid_time(input_string):
     td = extract_datetime(input_string,datetime.datetime.now())
     return td
 
+def timedeltaToString(td):
+    if td<datetime.timedelta(0):
+        td = -td
+    days = td.days
+    hours, remainder = divmod(td.seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    retstr = ""
+    if days!=0:
+        retstr = str(days) + " days, "
+    if hours!=0:
+        retstr = retstr + str(hours) + " hours, "
+    retstr = retstr + str(minutes) + " minutes"
+    return retstr
+
 class Pradu(MycroftSkill):
     def __init__(self):
         MycroftSkill.__init__(self)
@@ -42,11 +59,47 @@ class Pradu(MycroftSkill):
     def get_intro_message(self):
         return "Pradu's Custom Skills Loaded"
 
-    def initialize(self):
-        self.audio_service = AudioService(self.emitter)
+    def _schedule(self):
         tnext = datetime.datetime.now().replace(second=0,microsecond=0) + datetime.timedelta(seconds=60)
-        self.schedule_repeating_event(self.update,tnext,60,None,None)
-        self.make_active()
+        self.cancel_scheduled_event("PraduSkillUpdate")
+        self.schedule_event(self.update,tnext,name="PraduSkillUpdate")
+
+    def initialize(self):
+        self.audio_service = AudioService(self.bus)
+        tnext = datetime.datetime.now().replace(second=0,microsecond=0) + datetime.timedelta(seconds=60)
+        self._schedule()
+        #self.schedule_repeating_event(self.update,tnext,60,None,None)
+        #self.make_active()
+
+
+    @intent_file_handler('goal.intent')
+    def handle_goal(self, msg=None):
+        if not ('goal' in msg.data):
+            return
+        fn = prefix + 'goals.txt'
+        with open(fn,"a+") as f:
+            f.write(msg.data['goal'] + '\n')
+            self.speak('Added')
+
+    @intent_file_handler('query.intent')
+    def handle_query(self,msg=None):
+        tnow = datetime.datetime.now().replace(second=0,microsecond=0)
+        todaysList = self.getAllList(tnow)
+        prevTime = None
+        prevTask = None
+        nextTime = None
+        nextTask = None
+        for x in todaysList:
+            if (x.time <= tnow) and ( (not prevTime) or x.time >= prevTime ):
+                prevTime = x.time
+                prevTask = x.desc
+            if (x.time > tnow) and ( (not nextTime) or x.time <= nextTime ):
+                nextTime = x.time
+                nextTask = x.desc
+        if prevTask:
+            self.speak("Now for " + timedeltaToString(tnow-prevTime) + ". " + prevTask)
+        if nextTask:
+            self.speak("Next in " + timedeltaToString(nextTime-tnow) + ". " + nextTask)
 
     @intent_file_handler('remind.intent')
     def handle_reminder(self, msg=None):
@@ -92,7 +145,7 @@ class Pradu(MycroftSkill):
         timestring = "when you wake up"
         datestring = ""
         if t.hour==0 and t.minute==0 and t.second==0 and t.microsecond==0: #Day Reminder
-            t = t.replace(hour=6, minute=0)
+            t = t.replace(hour=5, minute=55)
         else:
             timestring = "at " + util.format.nice_time(t,'en-us',use_24hour=True)
 
@@ -110,15 +163,67 @@ class Pradu(MycroftSkill):
         if self.ask_yesno("You would like to be reminded " + datestring + " " + timestring + " to " + reminder + ".  Is that correct?")!="yes":
             self.speak("Okay. Please repeat your request if you would like a reminder.")
             return
+
+        fn = prefix + "reminders.pkl"
+        try:
+            with open(fn,"rb") as f:
+                remDict = pickle.load(f)
+        except:
+            remDict = dict()
+
         self.speak("Okay. I will remind you " + datestring + " " + timestring + " to " + reminder + ".")
         self.log.info("Adding reminder: [" + t.strftime("%A, %B %d, %Y,  %H:%M") + "]  " + reminder + ".")
+
+        if t in remDict:
+            remDict[t] = remDict[t] + ".  " + reminder
+        else:
+            remDict[t] = reminder
+
+        with open(fn,"wb") as f:
+            pickle.dump(remDict,f)
 
         #self.speak_dialog('pradu')
         #self.speak(message.data['reminder'])
 
+    def getTodoList(self,t):
+        todaysList = Todo()
+        todaysList.parse("everyday")
+        todaysList.parse(t.strftime("weekly/%A"))
+        todaysList.parse(t.strftime("date/%m%d"))
+        return todaysList
+
+    def getAllList(self,t):
+        todaysList = self.getTodoList(t)
+        # Add Reminders to Today's List
+        fn = prefix + "reminders.pkl"
+        remDict = dict()
+        with open(fn,"rb") as f:
+            remDict = pickle.load(f)
+        for t in remDict:
+            x=TodoItem()
+            x.time = t
+            x.desc = "Reminder. " + remDict[t]
+            todaysList.append(x)
+        todaysList.sort(key=lambda TodoItem: TodoItem.time)
+        return todaysList
+
+    def dailyOverview(self):
+        tnow = datetime.datetime.now()
+        todaysList = self.getAllList(tnow)
+
+        p = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/fanfare.wav")
+        p.wait()
+        for x in todaysList:
+            timeString = util.format.nice_time(x.time,'en-us',use_24hour=True)
+            self.speak("At " + timeString + ". " + x.desc)
+            time.sleep(0.25)
+            audio.wait_while_speaking()
+            q = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/click.wav")
+            q.wait()
+
     def update(self):
         tnow = datetime.datetime.now()
-        if tnow.hour==5 and tnow.minute==55:
+        if tnow.hour==5 and tnow.minute==50:
             self.log.info("Playing Wake-Up Song")
         #    self.audio_service.play("/opt/mycroft/skills/pradu-skill/audio/Eminem_Lose_Yourself.mp3")
             self.audio_service.play("/opt/mycroft/skills/pradu-skill/audio/JessGlynne_CleanBandit.mp3")
@@ -126,15 +231,12 @@ class Pradu(MycroftSkill):
             self.log.info("Notification of Current Time")
             audio.wait_while_speaking()
             self.speak("It's " + util.format.nice_time(tnow,use_24hour=True) + ".")
+            audio.wait_while_speaking()
 
-        todaysList = Todo()
-        todaysList.parse("everyday")
-        todaysList.parse(tnow.strftime("weekly/%A"))
-        todaysList.parse(tnow.strftime("date/%m%d"))
+        todaysList = self.getTodoList(tnow)
 
         firstNotification = True
         if len(todaysList) > 0:
-            audio.wait_while_speaking()
             for task in todaysList:
                 if (tnow - datetime.timedelta(seconds=30)) <= task.time and task.time <= (tnow + datetime.timedelta(seconds=30)):
                     if firstNotification:
@@ -145,9 +247,36 @@ class Pradu(MycroftSkill):
                     else:
                         q = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/click.wav")
                         q.wait()
-                    self.log.info("Saying :" + task.desc)
+                    self.log.info("Notification: " + task.desc)
                     self.speak(task.desc)
                     audio.wait_while_speaking()
+
+        # One Off Reminders
+        fn = prefix + "reminders.pkl"
+        remDict = dict()
+        with open(fn,"rb") as f:
+            remDict = pickle.load(f)
+        for t in list(remDict):
+            if t <= tnow + datetime.timedelta(seconds=30):
+                reminder = remDict.pop(t)
+                if firstNotification:
+                    firstNotification = False
+                    p = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/notification.wav")
+                    p.wait()
+                else:
+                    q = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/click.wav")
+                    q.wait()
+                self.log.info("Reminder: " + reminder)
+                self.speak(reminder)
+                audio.wait_while_speaking()
+        with open(fn,"wb") as f:
+            pickle.dump(remDict,f)
+
+        # Daily Overview
+        if tnow.hour==5 and tnow.minute==55:
+            self.dailyOverview()
+
+        self._schedule()
 
 def create_skill():
     return Pradu()
