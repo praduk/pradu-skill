@@ -6,8 +6,10 @@ import datetime
 import os
 import re
 import pickle
+from threading import Lock
 
-prefix = os.environ['HOME'] + '/planning/'
+#prefix = os.environ['HOME'] + '/planning/'
+prefix = '/data/mycroft/'
 
 class TodoItem:
     def __init__(self):
@@ -60,13 +62,19 @@ class Pradu(MycroftSkill):
         return "Pradu's Custom Skills Loaded"
 
     def _schedule(self):
+        self.scheduleLock.acquire()
         tnext = datetime.datetime.now().replace(second=0,microsecond=0) + datetime.timedelta(seconds=60)
-        self.cancel_scheduled_event("PraduSkillUpdate")
-        self.schedule_event(self.update,tnext,name="PraduSkillUpdate")
+        if (tnext-self.tlast).seconds > 30:
+            self.cancel_scheduled_event("Update")
+            self.schedule_event(self.update,tnext,name="Update")
+            self.log.info("Scheduling Next Update: " + self._unique_name("Update") + " "  + tnext.strftime("%A, %B %d, %Y,  %H:%M") + " (last was " + self.tlast.strftime("%A, %B %d, %Y,  %H:%M") + ")")
+            self.tlast = tnext
+        self.scheduleLock.release()
 
     def initialize(self):
         self.audio_service = AudioService(self.bus)
-        tnext = datetime.datetime.now().replace(second=0,microsecond=0) + datetime.timedelta(seconds=60)
+        self.tlast = datetime.datetime.now() + datetime.timedelta(seconds=-60)
+        self.scheduleLock = Lock()
         self._schedule()
         #self.schedule_repeating_event(self.update,tnext,60,None,None)
         #self.make_active()
@@ -222,6 +230,7 @@ class Pradu(MycroftSkill):
             q.wait()
 
     def update(self):
+        self._schedule()
         tnow = datetime.datetime.now()
         if tnow.hour==5 and tnow.minute==50:
             self.log.info("Playing Wake-Up Song")
@@ -253,9 +262,11 @@ class Pradu(MycroftSkill):
 
         # One Off Reminders
         fn = prefix + "reminders.pkl"
-        remDict = dict()
-        with open(fn,"rb") as f:
-            remDict = pickle.load(f)
+        try:
+            with open(fn,"rb") as f:
+                remDict = pickle.load(f)
+        except:
+            remDict = dict()
         for t in list(remDict):
             if t <= tnow + datetime.timedelta(seconds=30):
                 reminder = remDict.pop(t)
@@ -276,7 +287,6 @@ class Pradu(MycroftSkill):
         if tnow.hour==5 and tnow.minute==55:
             self.dailyOverview()
 
-        self._schedule()
 
 def create_skill():
     return Pradu()
