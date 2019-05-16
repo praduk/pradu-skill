@@ -22,7 +22,7 @@ class TodoItem:
         self.time = datetime.datetime(1,1,1)
         self.desc = ""
     def isCommand(self):
-        return len(self.desc)>0 && self.desc[0]=='!'
+        return len(self.desc)>0 and self.desc[0]=='!'
     def getCommand(self):
         return self.desc[1:]
 
@@ -219,6 +219,8 @@ class Pradu(MycroftSkill):
         try:
             with open(fn,"rb") as f:
                 remDict = pickle.load(f)
+        except:
+            pass
         for t in remDict:
             x=TodoItem()
             x.time = t
