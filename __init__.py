@@ -72,6 +72,7 @@ class Pradu(MycroftSkill):
         return "Pradu's Custom Skills Loaded"
 
     def _schedule(self):
+        didntschedule = True
         self.scheduleLock.acquire()
         tnext = datetime.datetime.now().replace(second=0,microsecond=0) + datetime.timedelta(seconds=60)
         if (tnext-self.tlast).seconds > 30:
@@ -79,7 +80,9 @@ class Pradu(MycroftSkill):
             self.schedule_event(self.update,tnext,name="Update")
             self.log.info("Scheduling Next Update: " + self._unique_name("Update") + " "  + tnext.strftime("%A, %B %d, %Y,  %H:%M") + " (last was " + self.tlast.strftime("%A, %B %d, %Y,  %H:%M") + ")")
             self.tlast = tnext
+            didntschedule = False
         self.scheduleLock.release()
+        return didntschedule
 
     def initialize(self):
         self.audio_service = AudioService(self.bus)
@@ -198,6 +201,7 @@ class Pradu(MycroftSkill):
             remDict[t] = reminder
 
         with open(fn,"wb") as f:
+            pullServer()
             pickle.dump(remDict,f)
             pushServer()
 
@@ -244,7 +248,8 @@ class Pradu(MycroftSkill):
             q.wait()
 
     def update(self):
-        self._schedule()
+        if self._schedule():
+            return
         tnow = datetime.datetime.now()
         if tnow.hour==5 and tnow.minute==46:
             self.log.info("Playing Wake-Up Song")
@@ -286,9 +291,11 @@ class Pradu(MycroftSkill):
                 remDict = pickle.load(f)
         except:
             remDict = dict()
+        remDict_haschanged = False
         for t in list(remDict):
             if t <= tnow + datetime.timedelta(seconds=30):
                 reminder = remDict.pop(t)
+                remDict_haschanged = True
                 if firstNotification:
                     firstNotification = False
                     p = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/notification.wav")
@@ -299,9 +306,11 @@ class Pradu(MycroftSkill):
                 self.log.info("Reminder: " + reminder)
                 self.speak(reminder)
                 audio.wait_while_speaking()
-        with open(fn,"wb") as f:
-            pickle.dump(remDict,f)
-            pushServer()
+        if remDict_haschanged:
+            with open(fn,"wb") as f:
+                pullServer()
+                pickle.dump(remDict,f)
+                pushServer()
 
         # Daily Overview
         if tnow.hour==5 and tnow.minute==55:
