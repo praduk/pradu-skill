@@ -11,6 +11,12 @@ from threading import Lock
 #prefix = os.environ['HOME'] + '/planning/'
 prefix = '/data/mycroft/'
 
+def pullServer():
+    os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh data@pradu.us:/data/mycroft/ /data/mycroft/")
+def pushServer():
+    os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh /data/mycroft/ data@pradu.us:/data/mycroft/")
+
+
 class TodoItem:
     def __init__(self):
         self.time = datetime.datetime(1,1,1)
@@ -193,6 +199,7 @@ class Pradu(MycroftSkill):
 
         with open(fn,"wb") as f:
             pickle.dump(remDict,f)
+            pushServer()
 
         #self.speak_dialog('pradu')
         #self.speak(message.data['reminder'])
@@ -237,14 +244,16 @@ class Pradu(MycroftSkill):
     def update(self):
         self._schedule()
         tnow = datetime.datetime.now()
-        if tnow.hour==5 and tnow.minute==50:
+        if tnow.hour==5 and tnow.minute==46:
             self.log.info("Playing Wake-Up Song")
         #    self.audio_service.play("/data/music/Eminem_Lose_Yourself.mp3")
-            self.audio_service.play("/data/music/JessGlynne_CleanBandit.mp3")
+        #    self.audio_service.play("/data/music/JessGlynne_CleanBandit.mp3")
+            self.audio_service.play("/data/music/Deadmau5_The_Veldt.mp3")
         if tnow.hour>=6 and ( tnow.hour<22 or (tnow.hour==22 and tnow.minute==0) ) and ( tnow.minute==0 or tnow.minute==15 or tnow.minute==30 or tnow.minute==45 ):
             self.log.info("Notification of Current Time")
             audio.wait_while_speaking()
             self.speak("It's " + util.format.nice_time(tnow,use_24hour=True) + ".")
+            pullServer()
             audio.wait_while_speaking()
 
         todaysList = self.getTodoList(tnow)
@@ -254,7 +263,7 @@ class Pradu(MycroftSkill):
             for task in todaysList:
                 if (tnow - datetime.timedelta(seconds=30)) <= task.time and task.time <= (tnow + datetime.timedelta(seconds=30)):
                     if task.isCommand():
-                        os.system(task.getCommand)
+                        os.system(task.getCommand())
                     else:
                         if firstNotification:
                             self.log.info("Playing Notifications")
@@ -290,6 +299,7 @@ class Pradu(MycroftSkill):
                 audio.wait_while_speaking()
         with open(fn,"wb") as f:
             pickle.dump(remDict,f)
+            pushServer()
 
         # Daily Overview
         if tnow.hour==5 and tnow.minute==55:
