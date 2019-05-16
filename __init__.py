@@ -15,6 +15,10 @@ class TodoItem:
     def __init__(self):
         self.time = datetime.datetime(1,1,1)
         self.desc = ""
+    def isCommand(self):
+        return len(self.desc)>0 && self.desc[0]=='!'
+    def getCommand(self):
+        return self.desc[1:]
 
 class Todo(list):
     def parse(self,fnstem):
@@ -205,8 +209,9 @@ class Pradu(MycroftSkill):
         # Add Reminders to Today's List
         fn = prefix + "reminders.pkl"
         remDict = dict()
-        with open(fn,"rb") as f:
-            remDict = pickle.load(f)
+        try:
+            with open(fn,"rb") as f:
+                remDict = pickle.load(f)
         for t in remDict:
             x=TodoItem()
             x.time = t
@@ -234,8 +239,8 @@ class Pradu(MycroftSkill):
         tnow = datetime.datetime.now()
         if tnow.hour==5 and tnow.minute==50:
             self.log.info("Playing Wake-Up Song")
-        #    self.audio_service.play("/opt/mycroft/skills/pradu-skill/audio/Eminem_Lose_Yourself.mp3")
-            self.audio_service.play("/opt/mycroft/skills/pradu-skill/audio/JessGlynne_CleanBandit.mp3")
+        #    self.audio_service.play("/data/music/Eminem_Lose_Yourself.mp3")
+            self.audio_service.play("/data/music/JessGlynne_CleanBandit.mp3")
         if tnow.hour>=6 and ( tnow.hour<22 or (tnow.hour==22 and tnow.minute==0) ) and ( tnow.minute==0 or tnow.minute==15 or tnow.minute==30 or tnow.minute==45 ):
             self.log.info("Notification of Current Time")
             audio.wait_while_speaking()
@@ -248,17 +253,20 @@ class Pradu(MycroftSkill):
         if len(todaysList) > 0:
             for task in todaysList:
                 if (tnow - datetime.timedelta(seconds=30)) <= task.time and task.time <= (tnow + datetime.timedelta(seconds=30)):
-                    if firstNotification:
-                        self.log.info("Playing Notifications")
-                        firstNotification = False
-                        p = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/notification.wav")
-                        p.wait()
+                    if task.isCommand():
+                        os.system(task.getCommand)
                     else:
-                        q = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/click.wav")
-                        q.wait()
-                    self.log.info("Notification: " + task.desc)
-                    self.speak(task.desc)
-                    audio.wait_while_speaking()
+                        if firstNotification:
+                            self.log.info("Playing Notifications")
+                            firstNotification = False
+                            p = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/notification.wav")
+                            p.wait()
+                        else:
+                            q = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/click.wav")
+                            q.wait()
+                        self.log.info("Notification: " + task.desc)
+                        self.speak(task.desc)
+                        audio.wait_while_speaking()
 
         # One Off Reminders
         fn = prefix + "reminders.pkl"
