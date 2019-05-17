@@ -103,10 +103,11 @@ class Pradu(MycroftSkill):
         if not ('goal' in msg.data):
             return
         fn = prefix + 'goals.txt'
+        self.pullServer()
         with open(fn,"a+") as f:
             f.write(msg.data['goal'] + '\n')
             self.speak('Added')
-            pushServer(self)
+            self.pushServer()
 
     @intent_file_handler('query.intent')
     def handle_query(self,msg=None):
