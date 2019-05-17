@@ -118,12 +118,13 @@ class Pradu(MycroftSkill):
         nextTime = None
         nextTask = None
         for x in todaysList:
-            if (x.time <= tnow) and ( (not prevTime) or x.time >= prevTime ):
-                prevTime = x.time
-                prevTask = x.desc
-            if (x.time > tnow) and ( (not nextTime) or x.time <= nextTime ):
-                nextTime = x.time
-                nextTask = x.desc
+            if not x.isCommand():
+                if (x.time <= tnow) and ( (not prevTime) or x.time >= prevTime ):
+                    prevTime = x.time
+                    prevTask = x.desc
+                if (x.time > tnow) and ( (not nextTime) or x.time <= nextTime ):
+                    nextTime = x.time
+                    nextTask = x.desc
         if prevTask:
             self.speak("Now for " + timedeltaToString(tnow-prevTime) + ". " + prevTask)
         if nextTask:
@@ -248,12 +249,13 @@ class Pradu(MycroftSkill):
         p = util.play_wav("/opt/mycroft/skills/pradu-skill.praduk/audio/fanfare.wav")
         p.wait()
         for x in todaysList:
-            timeString = util.format.nice_time(x.time,'en-us',use_24hour=True)
-            self.speak("At " + timeString + ". " + x.desc)
-            time.sleep(0.25)
-            audio.wait_while_speaking()
-            q = util.play_wav("/opt/mycroft/skills/pradu-skill.praduk/audio/click.wav")
-            q.wait()
+            if not x.isCommand():
+                timeString = util.format.nice_time(x.time,'en-us',use_24hour=True)
+                self.speak("At " + timeString + ". " + x.desc)
+                time.sleep(0.25)
+                audio.wait_while_speaking()
+                q = util.play_wav("/opt/mycroft/skills/pradu-skill.praduk/audio/click.wav")
+                q.wait()
 
     def update(self):
         if self._schedule():
@@ -278,6 +280,7 @@ class Pradu(MycroftSkill):
             for task in todaysList:
                 if (tnow - datetime.timedelta(seconds=30)) <= task.time and task.time <= (tnow + datetime.timedelta(seconds=30)):
                     if task.isCommand():
+                        self.log.info("Command: " + task.getCommand())
                         os.system(task.getCommand())
                     else:
                         if firstNotification:
