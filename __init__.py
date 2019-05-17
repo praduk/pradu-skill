@@ -11,10 +11,6 @@ from threading import Lock
 #prefix = os.environ['HOME'] + '/planning/'
 prefix = '/data/mycroft/'
 
-def pullServer():
-    os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh data@pradu.us:/data/mycroft/ /data/mycroft/")
-def pushServer():
-    os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh /data/mycroft/ data@pradu.us:/data/mycroft/")
 
 
 class TodoItem:
@@ -68,6 +64,15 @@ class Pradu(MycroftSkill):
     def __init__(self):
         MycroftSkill.__init__(self)
 
+    def pullServer(self):
+        self.log.info("==Server Pull==")
+        os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh data@pradu.us:/data/mycroft/ /data/mycroft/")
+        self.log.info("^^Server Pull^^")
+    def pushServer(self):
+        self.log.info("==Server Push==")
+        os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh /data/mycroft/ data@pradu.us:/data/mycroft/")
+        self.log.info("^^Server Push^^")
+
     def get_intro_message(self):
         return "Pradu's Custom Skills Loaded"
 
@@ -101,6 +106,7 @@ class Pradu(MycroftSkill):
         with open(fn,"a+") as f:
             f.write(msg.data['goal'] + '\n')
             self.speak('Added')
+            pushServer(self)
 
     @intent_file_handler('query.intent')
     def handle_query(self,msg=None):
@@ -194,6 +200,7 @@ class Pradu(MycroftSkill):
 
         self.speak("Okay. I will remind you " + datestring + " " + timestring + " to " + reminder + ".")
         self.log.info("Adding reminder: [" + t.strftime("%A, %B %d, %Y,  %H:%M") + "]  " + reminder + ".")
+        self.pullServer()
 
         if t in remDict:
             remDict[t] = remDict[t] + ".  " + reminder
@@ -201,9 +208,9 @@ class Pradu(MycroftSkill):
             remDict[t] = reminder
 
         with open(fn,"wb") as f:
-            pullServer()
             pickle.dump(remDict,f)
-            pushServer()
+            self.log.info("Pickle dump")
+        self.pushServer()
 
         #self.speak_dialog('pradu')
         #self.speak(message.data['reminder'])
@@ -237,14 +244,14 @@ class Pradu(MycroftSkill):
         tnow = datetime.datetime.now()
         todaysList = self.getAllList(tnow)
 
-        p = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/fanfare.wav")
+        p = util.play_wav("/opt/mycroft/skills/pradu-skill.praduk/audio/fanfare.wav")
         p.wait()
         for x in todaysList:
             timeString = util.format.nice_time(x.time,'en-us',use_24hour=True)
             self.speak("At " + timeString + ". " + x.desc)
             time.sleep(0.25)
             audio.wait_while_speaking()
-            q = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/click.wav")
+            q = util.play_wav("/opt/mycroft/skills/pradu-skill.praduk/audio/click.wav")
             q.wait()
 
     def update(self):
@@ -260,7 +267,7 @@ class Pradu(MycroftSkill):
             self.log.info("Notification of Current Time")
             audio.wait_while_speaking()
             self.speak("It's " + util.format.nice_time(tnow,use_24hour=True) + ".")
-            pullServer()
+            self.pullServer()
             audio.wait_while_speaking()
 
         todaysList = self.getTodoList(tnow)
@@ -275,10 +282,10 @@ class Pradu(MycroftSkill):
                         if firstNotification:
                             self.log.info("Playing Notifications")
                             firstNotification = False
-                            p = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/notification.wav")
+                            p = util.play_wav("/opt/mycroft/skills/pradu-skill.praduk/audio/notification.wav")
                             p.wait()
                         else:
-                            q = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/click.wav")
+                            q = util.play_wav("/opt/mycroft/skills/pradu-skill.praduk/audio/click.wav")
                             q.wait()
                         self.log.info("Notification: " + task.desc)
                         self.speak(task.desc)
@@ -295,22 +302,24 @@ class Pradu(MycroftSkill):
         for t in list(remDict):
             if t <= tnow + datetime.timedelta(seconds=30):
                 reminder = remDict.pop(t)
+                self.log.info("Dict: " + str(remDict))
                 remDict_haschanged = True
                 if firstNotification:
                     firstNotification = False
-                    p = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/notification.wav")
+                    p = util.play_wav("/opt/mycroft/skills/pradu-skill.praduk/audio/notification.wav")
                     p.wait()
                 else:
-                    q = util.play_wav("/opt/mycroft/skills/pradu-skill/audio/click.wav")
+                    q = util.play_wav("/opt/mycroft/skills/pradu-skill.praduk/audio/click.wav")
                     q.wait()
                 self.log.info("Reminder: " + reminder)
                 self.speak(reminder)
                 audio.wait_while_speaking()
         if remDict_haschanged:
+            self.pullServer()
             with open(fn,"wb") as f:
-                pullServer()
                 pickle.dump(remDict,f)
-                pushServer()
+                self.log.info("Pickle dump")
+                self.pushServer()
 
         # Daily Overview
         if tnow.hour==5 and tnow.minute==55:
