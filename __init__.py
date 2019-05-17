@@ -194,11 +194,12 @@ class Pradu(MycroftSkill):
             return
 
         fn = prefix + "reminders.pkl"
+        remDict = dict()
         try:
             with open(fn,"rb") as f:
                 remDict = pickle.load(f)
         except:
-            remDict = dict()
+            pass
 
         self.speak("Okay. I will remind you " + datestring + " " + timestring + " to " + reminder + ".")
         self.log.info("Adding reminder: [" + t.strftime("%A, %B %d, %Y,  %H:%M") + "]  " + reminder + ".")
@@ -297,16 +298,16 @@ class Pradu(MycroftSkill):
 
         # One Off Reminders
         fn = prefix + "reminders.pkl"
+        remDict = dict()
         try:
             with open(fn,"rb") as f:
                 remDict = pickle.load(f)
         except:
-            remDict = dict()
+            pass
         remDict_haschanged = False
         for t in list(remDict):
             if t <= tnow + datetime.timedelta(seconds=30):
                 reminder = remDict.pop(t)
-                self.log.info("Dict: " + str(remDict))
                 remDict_haschanged = True
                 if firstNotification:
                     firstNotification = False
