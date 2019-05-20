@@ -10,6 +10,7 @@ from threading import Lock
 
 #prefix = os.environ['HOME'] + '/planning/'
 prefix = '/data/mycroft/'
+skilldir= '/opt/mycroft/skills/pradu-skill.praduk/'
 
 
 
@@ -17,10 +18,28 @@ class TodoItem:
     def __init__(self):
         self.time = datetime.datetime(1,1,1)
         self.desc = ""
+    def isLocalCommand(self):
+        if len(self.desc)<=0 or self.desc[0]!='@':
+            return False
+        else:
+            (uname, rest) = self.desc.split(" ",1)
+            return uname[1:]==os.environ['HOSTNAME']
     def isCommand(self):
-        return len(self.desc)>0 and self.desc[0]=='!'
-    def getCommand(self):
-        return self.desc[1:]
+        return len(self.desc)>0 and (self.desc[0]=='!' or self.isLocalCommand())
+    def isImportant(self):
+        return len(self.desc)>0 and self.desc[0]=='*'
+    def makeImportant(self):
+        if (not self.isCommand()) and (not self.isImportant()):
+            self.desc = '*' + self.desc
+    def getText(self):
+        if self.isLocalCommand():
+            (uname, cmd) = self.desc.split(" ",1)
+            return cmd
+        elif self.isCommand() or self.isImportant():
+            return self.desc[1:]
+        else:
+            return self.desc
+
 
 class Todo(list):
     def parse(self,fnstem):
@@ -63,14 +82,15 @@ def timedeltaToString(td):
 class Pradu(MycroftSkill):
     def __init__(self):
         MycroftSkill.__init__(self)
+        self.scheduleLock = Lock()
 
     def pullServer(self):
         self.log.info("==Server Pull==")
-        os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh data@pradu.us:/data/mycroft/ /data/mycroft/")
+        os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh data@pradu.us:/data/mycroft/ " + prefix)
         self.log.info("^^Server Pull^^")
     def pushServer(self):
         self.log.info("==Server Push==")
-        os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh /data/mycroft/ data@pradu.us:/data/mycroft/")
+        os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh " + prefix + " data@pradu.us:/data/mycroft/")
         self.log.info("^^Server Push^^")
 
     def get_intro_message(self):
@@ -81,9 +101,9 @@ class Pradu(MycroftSkill):
         self.scheduleLock.acquire()
         tnext = datetime.datetime.now().replace(second=0,microsecond=0) + datetime.timedelta(seconds=60)
         if (tnext-self.tlast).seconds > 30:
-            self.cancel_scheduled_event("Update")
+            #self.cancel_scheduled_event("Update")
             self.schedule_event(self.update,tnext,name="Update")
-            self.log.info("Scheduling Next Update: " + self._unique_name("Update") + " "  + tnext.strftime("%A, %B %d, %Y,  %H:%M") + " (last was " + self.tlast.strftime("%A, %B %d, %Y,  %H:%M") + ")")
+            self.log.info("Next Update: " + self._unique_name("Update") + " "  + tnext.strftime("%A, %B %d, %Y,  %H:%M") + " (last was " + self.tlast.strftime("%A, %B %d, %Y,  %H:%M") + ")")
             self.tlast = tnext
             didntschedule = False
         self.scheduleLock.release()
@@ -92,10 +112,10 @@ class Pradu(MycroftSkill):
     def initialize(self):
         self.audio_service = AudioService(self.bus)
         self.tlast = datetime.datetime.now() + datetime.timedelta(seconds=-60)
-        self.scheduleLock = Lock()
-        self._schedule()
+        self.make_active()
+        self.update()
+        #self._schedule()
         #self.schedule_repeating_event(self.update,tnext,60,None,None)
-        #self.make_active()
 
 
     @intent_file_handler('goal.intent')
@@ -238,7 +258,7 @@ class Pradu(MycroftSkill):
         for t in remDict:
             x=TodoItem()
             x.time = t
-            x.desc = "Reminder. " + remDict[t]
+            x.desc = "*Reminder. " + remDict[t]
             todaysList.append(x)
         todaysList.sort(key=lambda TodoItem: TodoItem.time)
         return todaysList
@@ -247,32 +267,34 @@ class Pradu(MycroftSkill):
         tnow = datetime.datetime.now()
         todaysList = self.getAllList(tnow)
 
-        p = util.play_wav("/opt/mycroft/skills/pradu-skill.praduk/audio/fanfare.wav")
-        p.wait()
+        util.play_wav(skilldir + "audio/fanfare.wav").wait()
         for x in todaysList:
-            if not x.isCommand():
+            if x.isImportant():
                 timeString = util.format.nice_time(x.time,'en-us',use_24hour=True)
-                self.speak("At " + timeString + ". " + x.desc)
+                self.speak("At " + timeString + ". " + x.getText())
                 time.sleep(0.25)
                 audio.wait_while_speaking()
-                q = util.play_wav("/opt/mycroft/skills/pradu-skill.praduk/audio/click.wav")
-                q.wait()
+                util.play_wav(skilldir+"audio/fingersnap.wav").wait()
 
     def update(self):
         if self._schedule():
             return
         tnow = datetime.datetime.now()
-        if tnow.hour==5 and tnow.minute==46:
-            self.log.info("Playing Wake-Up Song")
-        #    self.audio_service.play("/data/music/Eminem_Lose_Yourself.mp3")
-        #    self.audio_service.play("/data/music/JessGlynne_CleanBandit.mp3")
-            self.audio_service.play("/data/music/Deadmau5_The_Veldt.mp3")
+        playedSomething = False
+        #if tnow.hour==5 and tnow.minute==46:
+        #    self.log.info("Playing Wake-Up Song")
+        ##    self.audio_service.play("/data/music/Eminem_Lose_Yourself.mp3")
+        ##    self.audio_service.play("/data/music/JessGlynne_CleanBandit.mp3")
+        #    self.audio_service.play("/data/music/Deadmau5_The_Veldt.mp3")
+        #    playedSomething=True
         if tnow.hour>=6 and ( tnow.hour<22 or (tnow.hour==22 and tnow.minute==0) ) and ( tnow.minute==0 or tnow.minute==15 or tnow.minute==30 or tnow.minute==45 ):
             self.log.info("Notification of Current Time")
             audio.wait_while_speaking()
+            util.play_wav("audio/fingersnap.wav").wait()
             self.speak("It's " + util.format.nice_time(tnow,use_24hour=True) + ".")
             self.pullServer()
             audio.wait_while_speaking()
+            playedSomething=True
 
         todaysList = self.getTodoList(tnow)
 
@@ -281,20 +303,19 @@ class Pradu(MycroftSkill):
             for task in todaysList:
                 if (tnow - datetime.timedelta(seconds=30)) <= task.time and task.time <= (tnow + datetime.timedelta(seconds=30)):
                     if task.isCommand():
-                        self.log.info("Command: " + task.getCommand())
-                        os.system(task.getCommand())
+                        self.log.info("Command: " + task.getText())
+                        os.system(task.getText())
                     else:
                         if firstNotification:
                             self.log.info("Playing Notifications")
                             firstNotification = False
-                            p = util.play_wav("/opt/mycroft/skills/pradu-skill.praduk/audio/notification.wav")
-                            p.wait()
+                            util.play_wav(skilldir + "audio/notification.wav").wait()
                         else:
-                            q = util.play_wav("/opt/mycroft/skills/pradu-skill.praduk/audio/click.wav")
-                            q.wait()
-                        self.log.info("Notification: " + task.desc)
-                        self.speak(task.desc)
+                            q = util.play_wav(skilldir + "audio/fingersnap.wav").wait()
+                        self.log.info("Notification: " + task.getText())
+                        self.speak(task.getText())
                         audio.wait_while_speaking()
+                        playedSomething = True
 
         # One Off Reminders
         fn = prefix + "reminders.pkl"
@@ -311,14 +332,13 @@ class Pradu(MycroftSkill):
                 remDict_haschanged = True
                 if firstNotification:
                     firstNotification = False
-                    p = util.play_wav("/opt/mycroft/skills/pradu-skill.praduk/audio/notification.wav")
-                    p.wait()
+                    util.play_wav(skilldir + "audio/notification.wav").wait()
                 else:
-                    q = util.play_wav("/opt/mycroft/skills/pradu-skill.praduk/audio/click.wav")
-                    q.wait()
+                    util.play_wav(skilldir + "audio/fingersnap.wav").wait()
                 self.log.info("Reminder: " + reminder)
                 self.speak(reminder)
                 audio.wait_while_speaking()
+                playedSomething = True
         if remDict_haschanged:
             self.pullServer()
             with open(fn,"wb") as f:
@@ -329,6 +349,10 @@ class Pradu(MycroftSkill):
         # Daily Overview
         if tnow.hour==5 and tnow.minute==55:
             self.dailyOverview()
+            playedSomething = True
+
+        # To Keep BlueTooth Speaker Alive
+        util.play_wav(skilldir + "audio/softknock.wav").wait()
 
 
 def create_skill():
