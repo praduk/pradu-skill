@@ -6,6 +6,7 @@ import datetime
 import os
 import re
 import pickle
+import socket
 from threading import Lock
 
 #prefix = os.environ['HOME'] + '/planning/'
@@ -23,7 +24,7 @@ class TodoItem:
             return False
         else:
             (uname, rest) = self.desc.split(" ",1)
-            return uname[1:]==os.environ['HOSTNAME']
+            return uname[1:]==socket.gethostname()
     def isCommand(self):
         return len(self.desc)>0 and (self.desc[0]=='!' or self.isLocalCommand())
     def isImportant(self):
@@ -85,9 +86,10 @@ class Pradu(MycroftSkill):
         self.scheduleLock = Lock()
 
     def pullServer(self):
-        self.log.info("==Server Pull==")
-        os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh data@pradu.us:/data/mycroft/ " + prefix)
-        self.log.info("^^Server Pull^^")
+        pass
+        #self.log.info("==Server Pull==")
+        #os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh data@pradu.us:/data/mycroft/ " + prefix)
+        #self.log.info("^^Server Pull^^")
     def pushServer(self):
         self.log.info("==Server Push==")
         os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh " + prefix + " data@pradu.us:/data/mycroft/")
@@ -290,7 +292,7 @@ class Pradu(MycroftSkill):
         if tnow.hour>=6 and ( tnow.hour<22 or (tnow.hour==22 and tnow.minute==0) ) and ( tnow.minute==0 or tnow.minute==15 or tnow.minute==30 or tnow.minute==45 ):
             self.log.info("Notification of Current Time")
             audio.wait_while_speaking()
-            util.play_wav("audio/fingersnap.wav").wait()
+            util.play_wav(skilldir + "audio/fingersnap.wav").wait()
             self.speak("It's " + util.format.nice_time(tnow,use_24hour=True) + ".")
             self.pullServer()
             audio.wait_while_speaking()
