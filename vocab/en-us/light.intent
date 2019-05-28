@@ -1,0 +1,4 @@
+light {{number}}
+toggle {{number}}
+turn on {{number}}
+turn off {{number}}

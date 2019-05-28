@@ -1,0 +1,42 @@
+timer {{second}} seconds
+timer {{minute}} minute
+timer {{minute}} minutes
+timer {{hour}} hour
+timer {{hour}} hours
+timer {{minute}} minute {{second}} second
+timer {{minute}} minute {{second}} seconds
+timer {{minute}} minutes {{second}} second
+timer {{minute}} minutes {{second}} seconds
+timer {{hour}} hour {{minute}} minute
+timer {{hour}} hour {{minute}} minutes
+timer {{hour}} hours {{minute}} minutes
+timer {{hour}} hours {{minute}} minute
+timer {{minute}} minute and {{second}} second
+timer {{minute}} minute and {{second}} seconds
+timer {{minute}} minutes and {{second}} second
+timer {{minute}} minutes and {{second}} seconds
+timer {{hour}} hour and {{minute}} minute
+timer {{hour}} hour and {{minute}} minutes
+timer {{hour}} hours and {{minute}} minutes
+timer {{hour}} hours and {{minute}} minute
+set timer {{second}} seconds
+set timer {{minute}} minute
+set timer {{minute}} minutes
+set timer {{hour}} hour
+set timer {{hour}} hours
+set timer {{minute}} minute {{second}} second
+set timer {{minute}} minute {{second}} seconds
+set timer {{minute}} minutes {{second}} second
+set timer {{minute}} minutes {{second}} seconds
+set timer {{hour}} hour {{minute}} minute
+set timer {{hour}} hour {{minute}} minutes
+set timer {{hour}} hours {{minute}} minutes
+set timer {{hour}} hours {{minute}} minute
+set timer {{minute}} minute and {{second}} second
+set timer {{minute}} minute and {{second}} seconds
+set timer {{minute}} minutes and {{second}} second
+set timer {{minute}} minutes and {{second}} seconds
+set timer {{hour}} hour and {{minute}} minute
+set timer {{hour}} hour and {{minute}} minutes
+set timer {{hour}} hours and {{minute}} minutes
+set timer {{hour}} hours and {{minute}} minute

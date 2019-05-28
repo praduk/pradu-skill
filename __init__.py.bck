@@ -8,7 +8,7 @@ import re
 import pickle
 import socket
 import sys
-import _thread as thread
+import thread
 import time
 from threading import Lock
 
@@ -63,8 +63,9 @@ class TodoItem:
 
 
 class Todo(list):
-    def parse(self,t,fnstem,offset=0):
-        fn = prefix + t.strftime(fnstem) + '.txt'
+    def parse(self,fnstem):
+        fn = prefix + fnstem + '.txt'
+        datetoday = datetime.datetime.today()
         try:
             with open(fn,"r") as f:
                 data = f.read().splitlines()
@@ -73,27 +74,12 @@ class Todo(list):
                         continue
                     i = TodoItem()
                     y = x.split(" ", 1)
-                    if y[0]=='include':
-                        self.parse(t,"templates/"+y[1])
-                    elif y[0]=='template':
-                        z = y[1].split(" ", 1)
-                        num = int(y[0])
-                        switchSign = False
-                        if num<0:
-                            switchSign = True
-                            num = -num
-                        tbase = 60*(num//100) + num%100
-                        if switchSign:
-                            tbase = -tbase
-                        self.parse(t,"templates/"+z[1],tbase)
-                    else:
-                        time = int(y[0])
-                        i.time = datetime.datetime(t.year, t.month, t.day, time//100, time%100) + datetime.timedelta(minutes=offset)
-                        i.desc = y[1]
-                        self.append(i)
-            return True
-        except Exception as e:
-            return False
+                    time = int(y[0])
+                    i.time = datetime.datetime(datetoday.year, datetoday.month, datetoday.day, time//100, time%100)
+                    i.desc = y[1]
+                    self.append(i)
+        except:
+            pass
 
 
 def valid_time(input_string):
@@ -120,19 +106,14 @@ class Pradu(MycroftSkill):
         self.scheduleLock = Lock()
 
     def pullServer(self):
-        if not socket.gethostname()=='pi0':
-            #serverinfo = 'data@pradu.us'
-            serverinfo = 'pradu@pi0.local'
-            self.log.info("==Server Pull==")
-            os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh " + serverinfo + ":/data/mycroft/ " + prefix)
-            self.log.info("^^Server Pull^^")
+        pass
+        #self.log.info("==Server Pull==")
+        #os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh data@pradu.us:/data/mycroft/ " + prefix)
+        #self.log.info("^^Server Pull^^")
     def pushServer(self):
-        if not socket.gethostname()=='pi0':
-            #serverinfo = 'data@pradu.us'
-            serverinfo = 'pradu@pi0.local'
-            self.log.info("==Server Push==")
-            os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh " + prefix + " " + serverinfo + ":/data/mycroft/")
-            self.log.info("^^Server Push^^")
+        self.log.info("==Server Push==")
+        os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh " + prefix + " data@pradu.us:/data/mycroft/")
+        self.log.info("^^Server Push^^")
 
     def get_intro_message(self):
         return "Pradu's Custom Skills Loaded"
@@ -170,64 +151,6 @@ class Pradu(MycroftSkill):
             self.speak('Added')
             self.pushServer()
 
-    @intent_file_handler('timer.intent')
-    def set_timer(self, msg=None):
-        seconds = 0
-        minutes = 0
-        hours   = 0
-        if 'minute' in msg.data:
-            minutes = extract_number(msg.data['minute'])
-        if 'second' in msg.data:
-            seconds = extract_number(msg.data['second'])
-        if 'hour' in msg.data:
-            hours = extract_number(msg.data['hour'])
-        if minutes>0 or seconds>0 or hours>0:
-            ttimer = datetime.datetime.now() + datetime.timedelta(hours=hours,minutes=minutes,seconds=seconds)
-            broadcast(('timer', ttimer))
-            self.speak("Timer Set")
-    @intent_file_handler('canceltimer.intent')
-    def cancel_timer(self, msg=None):
-        broadcast(('stoptimer',))
-    @intent_file_handler('light.intent')
-    def toggle_light(self, msg=None):
-        if 'number' in msg.data:
-            if msg.data['number']=='bedroom':
-                selfcast(('toggle',['Light0']))
-            if msg.data['number']=='living room':
-                selfcast(('toggle',['Light1']))
-            if msg.data['number']=='bathroom':
-                selfcast(('toggle',['Light2','Light3','Light4']))
-            if msg.data['number']=='game room' or msg.data['number']=='workout room' or msg.data['number']=='gym' or msg.data['number']=='gym room':
-                selfcast(('toggle',['Light5']))
-            if msg.data['number']=='outside':
-                selfcast(('toggle',['Outside0']))
-            else:
-                selfcast(('toggle',['Light'+str(extract_number(msg.data['number']))]))
-        else:
-            self.speak("I don't know what light to toggle")
-
-
-    def updateGui(self):
-        tnow = datetime.datetime.now().replace(second=0,microsecond=0)
-        todaysList = self.getAllList(tnow)
-        prevTime = None
-        prevTask = None
-        nextTime = None
-        nextTask = None
-        for x in todaysList:
-            if not x.isCommand():
-                if (x.time <= tnow) and ( (not prevTime) or x.time >= prevTime ):
-                    prevTime = x.time
-                    prevTask = x.getText()
-                if (x.time > tnow) and ( (not nextTime) or x.time <= nextTime ):
-                    nextTime = x.time
-                    nextTask = x.getText()
-        if prevTask:
-            selfcast(("activity",prevTime,prevTask))
-        if nextTask:
-            selfcast(("activity",nextTime,nextTask))
-        
-
     @intent_file_handler('query.intent')
     def handle_query(self,msg=None):
         tnow = datetime.datetime.now().replace(second=0,microsecond=0)
@@ -240,10 +163,10 @@ class Pradu(MycroftSkill):
             if not x.isCommand():
                 if (x.time <= tnow) and ( (not prevTime) or x.time >= prevTime ):
                     prevTime = x.time
-                    prevTask = x.getText()
+                    prevTask = x.desc
                 if (x.time > tnow) and ( (not nextTime) or x.time <= nextTime ):
                     nextTime = x.time
-                    nextTask = x.getText()
+                    nextTask = x.desc
         if prevTask:
             self.speak("Now for " + timedeltaToString(tnow-prevTime) + ". " + prevTask)
         if nextTask:
@@ -339,13 +262,9 @@ class Pradu(MycroftSkill):
 
     def getTodoList(self,t):
         todaysList = Todo()
-        # Prase File According to Priority
-        if todaysList.parse(t,"date/%Y%m%d"): pass
-        elif todaysList.parse(t,"yearly/%m%d"): pass
-        elif todaysList.parse(t,"monthly/%d"): pass
-        elif todaysList.parse(t,"weekly/%A"): pass
-        else: todaysList.parse(t,"everyday")
-        todaysList.sort(key=lambda TodoItem: TodoItem.time)
+        todaysList.parse("everyday")
+        todaysList.parse(t.strftime("weekly/%A"))
+        todaysList.parse(t.strftime("date/%m%d"))
         return todaysList
 
     def getAllList(self,t):
@@ -455,10 +374,7 @@ class Pradu(MycroftSkill):
             playedSomething = True
 
         # To Keep BlueTooth Speaker Alive
-        #util.play_wav(skilldir + "audio/softknock.wav").wait()
-
-        # Update GUI
-        self.updateGui()
+        util.play_wav(skilldir + "audio/softknock.wav").wait()
 
 
 def create_skill():
