@@ -47,10 +47,12 @@ class TodoItem:
             return uname[1:]==socket.gethostname()
     def isCommand(self):
         return len(self.desc)>0 and (self.desc[0]=='!' or self.isLocalCommand())
+    def isActivity(self):
+        return len(self.desc)>0 and not (self.desc[0]=='!' or self.desc[0]=='@')
     def isImportant(self):
         return len(self.desc)>0 and self.desc[0]=='*'
     def makeImportant(self):
-        if (not self.isCommand()) and (not self.isImportant()):
+        if self.isActivity():
             self.desc = '*' + self.desc
     def getText(self):
         if self.isLocalCommand():
@@ -215,7 +217,7 @@ class Pradu(MycroftSkill):
         nextTime = None
         nextTask = None
         for x in todaysList:
-            if not x.isCommand():
+            if x.isActivity():
                 if (x.time <= tnow) and ( (not prevTime) or x.time >= prevTime ):
                     prevTime = x.time
                     prevTask = x.getText()
@@ -237,7 +239,7 @@ class Pradu(MycroftSkill):
         nextTime = None
         nextTask = None
         for x in todaysList:
-            if not x.isCommand():
+            if not x.isActivity():
                 if (x.time <= tnow) and ( (not prevTime) or x.time >= prevTime ):
                     prevTime = x.time
                     prevTask = x.getText()
