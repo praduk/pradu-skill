@@ -79,7 +79,7 @@ class Todo(list):
                         self.parse(t,"templates/"+y[1])
                     elif y[0]=='template':
                         z = y[1].split(" ", 1)
-                        num = int(y[0])
+                        num = int(z[0])
                         switchSign = False
                         if num<0:
                             switchSign = True
