@@ -414,7 +414,7 @@ class Pradu(MycroftSkill):
                         if firstNotification:
                             self.log.info("Playing Notifications")
                             firstNotification = False
-                            util.play_wav(skilldir + "audio/notification.wav").wait()
+                            util.play_wav(skilldir + "audio/notify_crisp.wav").wait()
                         else:
                             q = util.play_wav(skilldir + "audio/fingersnap.wav").wait()
                         self.log.info("Notification: " + task.getText())
@@ -437,7 +437,7 @@ class Pradu(MycroftSkill):
                 remDict_haschanged = True
                 if firstNotification:
                     firstNotification = False
-                    util.play_wav(skilldir + "audio/notification.wav").wait()
+                    util.play_wav(skilldir + "audio/notify_crisp.wav").wait()
                 else:
                     util.play_wav(skilldir + "audio/fingersnap.wav").wait()
                 self.log.info("Reminder: " + reminder)
