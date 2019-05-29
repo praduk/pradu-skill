@@ -410,7 +410,7 @@ class Pradu(MycroftSkill):
                     if task.isCommand():
                         self.log.info("Command: " + task.getText())
                         os.system(task.getText())
-                    else:
+                    elif task.isActivity():
                         if firstNotification:
                             self.log.info("Playing Notifications")
                             firstNotification = False
