@@ -48,7 +48,7 @@ class TodoItem:
     def isCommand(self):
         return len(self.desc)>0 and (self.desc[0]=='!' or self.isLocalCommand())
     def isActivity(self):
-        return len(self.desc)>0 and not (self.desc[0]=='!' or self.desc[0]=='@')
+        return len(self.desc)>0 and not (self.desc[0]=='!' and not self.desc[0]=='@')
     def isImportant(self):
         return len(self.desc)>0 and self.desc[0]=='*'
     def makeImportant(self):
