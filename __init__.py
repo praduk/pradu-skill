@@ -133,13 +133,13 @@ class Pradu(MycroftSkill):
         self.log.info("==Server Push==")
         if not socket.gethostname()=='pi0':
             serverinfo = 'pradu@pi0.local'
-            os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh " + prefix + " " + serverinfo + ":/data/mycroft/")
+            os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh " + prefix + " " + serverinfo + ":" + prefix)
         if not socket.gethostname()=='pi1':
             serverinfo = 'pradu@pi1.local'
-            os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh " + prefix + " " + serverinfo + ":/data/mycroft/")
+            os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh " + prefix + " " + serverinfo + ":" + prefix)
         if not socket.gethostname()=='pi2':
             serverinfo = 'pradu@pi2.local'
-            os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh " + prefix + " " + serverinfo + ":/data/mycroft/")
+            os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh " + prefix + " " + serverinfo + ":" + prefix)
         self.log.info("^^Server Push^^")
 
     def get_intro_message(self):
