@@ -176,7 +176,7 @@ class Pradu(MycroftSkill):
         with open(fn,"a+") as f:
             f.write(msg.data['goal'] + '\n')
             self.speak('Added')
-            self.pushServer()
+        self.pushServer()
 
     @intent_file_handler('timer.intent')
     def set_timer(self, msg=None):
