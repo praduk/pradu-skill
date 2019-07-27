@@ -445,11 +445,11 @@ class Pradu(MycroftSkill):
                 audio.wait_while_speaking()
                 playedSomething = True
         if remDict_haschanged:
-            self.pullServer()
+            #self.pullServer()
             with open(fn,"wb") as f:
                 pickle.dump(remDict,f)
                 self.log.info("Pickle dump")
-                self.pushServer()
+                #self.pushServer()
 
         # Daily Overview
         if tnow.hour==5 and tnow.minute==55:
