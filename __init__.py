@@ -239,7 +239,7 @@ class Pradu(MycroftSkill):
         nextTime = None
         nextTask = None
         for x in todaysList:
-            if not x.isActivity():
+            if x.isActivity():
                 if (x.time <= tnow) and ( (not prevTime) or x.time >= prevTime ):
                     prevTime = x.time
                     prevTask = x.getText()
