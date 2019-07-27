@@ -121,20 +121,26 @@ class Pradu(MycroftSkill):
         MycroftSkill.__init__(self)
         self.scheduleLock = Lock()
 
-    def pullServer(self):
-        if not socket.gethostname()=='pi0':
-            #serverinfo = 'data@pradu.us'
-            serverinfo = 'pradu@pi0.local'
-            self.log.info("==Server Pull==")
-            os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh " + serverinfo + ":/data/mycroft/ " + prefix)
-            self.log.info("^^Server Pull^^")
+    #def pullServer(self):
+    #    if not socket.gethostname()=='pi0':
+    #        #serverinfo = 'data@pradu.us'
+    #        serverinfo = 'pradu@pi0.local'
+    #        self.log.info("==Server Pull==")
+    #        os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh " + serverinfo + ":/data/mycroft/ " + prefix)
+    #        self.log.info("^^Server Pull^^")
     def pushServer(self):
+        #serverinfo = 'data@pradu.us'
+        self.log.info("==Server Push==")
         if not socket.gethostname()=='pi0':
-            #serverinfo = 'data@pradu.us'
             serverinfo = 'pradu@pi0.local'
-            self.log.info("==Server Push==")
             os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh " + prefix + " " + serverinfo + ":/data/mycroft/")
-            self.log.info("^^Server Push^^")
+        if not socket.gethostname()=='pi1':
+            serverinfo = 'pradu@pi1.local'
+            os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh " + prefix + " " + serverinfo + ":/data/mycroft/")
+        if not socket.gethostname()=='pi2':
+            serverinfo = 'pradu@pi2.local'
+            os.system("/usr/bin/rsync -avg --omit-dir-times --delete -e ssh " + prefix + " " + serverinfo + ":/data/mycroft/")
+        self.log.info("^^Server Push^^")
 
     def get_intro_message(self):
         return "Pradu's Custom Skills Loaded"
@@ -166,7 +172,7 @@ class Pradu(MycroftSkill):
         if not ('goal' in msg.data):
             return
         fn = prefix + 'goals.txt'
-        self.pullServer()
+        #self.pullServer()
         with open(fn,"a+") as f:
             f.write(msg.data['goal'] + '\n')
             self.speak('Added')
@@ -324,7 +330,7 @@ class Pradu(MycroftSkill):
 
         self.speak("Okay. I will remind you " + datestring + " " + timestring + " to " + reminder + ".")
         self.log.info("Adding reminder: [" + t.strftime("%A, %B %d, %Y,  %H:%M") + "]  " + reminder + ".")
-        self.pullServer()
+        #self.pullServer()
 
         if t in remDict:
             remDict[t] = remDict[t] + ".  " + reminder
@@ -397,7 +403,7 @@ class Pradu(MycroftSkill):
             audio.wait_while_speaking()
             util.play_wav(skilldir + "audio/fingersnap.wav").wait()
             self.speak("It's " + util.format.nice_time(tnow,use_24hour=True) + ".")
-            self.pullServer()
+            #self.pullServer()
             audio.wait_while_speaking()
             playedSomething=True
 
