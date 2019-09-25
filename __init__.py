@@ -152,7 +152,7 @@ class Pradu(MycroftSkill):
         if (tnext-self.tlast).seconds > 30:
             #self.cancel_scheduled_event("Update")
             self.schedule_event(self.update,tnext,name="Update")
-            self.log.info("Next Update: " + self._unique_name("Update") + " "  + tnext.strftime("%A, %B %d, %Y,  %H:%M") + " (last was " + self.tlast.strftime("%A, %B %d, %Y,  %H:%M") + ")")
+            self.log.info("Next Update: " + tnext.strftime("%A, %B %d, %Y,  %H:%M") + " (last was " + self.tlast.strftime("%A, %B %d, %Y,  %H:%M") + ")")
             self.tlast = tnext
             didntschedule = False
         self.scheduleLock.release()
